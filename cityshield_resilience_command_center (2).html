@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CITYSHIELD RESILIENCE - AI-Powered Urban Command Center</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            950: '#070A11',
+                            900: '#0B0F19',
+                            850: '#0F1523',
+                            800: '#111827',
+                            700: '#1F2937',
+                            600: '#374151'
+                        },
+                        cyan: {
+                            400: '#22D3EE',
+                            500: '#06B6D4',
+                            600: '#0891B2'
+                        },
+                        brand: {
+                            accent: '#06B6D4',
+                            danger: '#EF4444',
+                            warning: '#F59E0B',
+                            success: '#10B981',
+                            info: '#3B82F6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet GIS Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Recharts / Chart.js for smooth graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom scrollbar for dense command center feel */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0B0F19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F2937;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #06B6D4;
+        }
+        
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.4);
+        }
+        .glass-panel-glow {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+        }
+        
+        .pulse-red {
+            animation: pulse-red-anim 2s infinite;
+        }
+        @keyframes pulse-red-anim {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .pulse-cyan {
+            animation: pulse-cyan-anim 2s infinite;
+        }
+        @keyframes pulse-cyan-anim {
+            0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(6, 182, 212, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
+        }
+
+        /* Leaflet Dark Theme Overrides */
+        .leaflet-container {
+            background: #070A11 !important;
+            font-family: 'Inter', sans-serif !important;
+        }
+        .leaflet-popup-content-wrapper {
+            background: #111827 !important;
+            color: #F3F4F6 !important;
+            border: 1px solid #06B6D4;
+            border-radius: 8px !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+        }
+        .leaflet-popup-tip {
+            background: #111827 !important;
+        }
+
+        /* CV Bounding Box Animations */
+        .cv-box {
+            position: absolute;
+            border: 2px solid #EF4444;
+            background: rgba(239, 68, 68, 0.2);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-navy-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col overflow-x-hidden select-none">
+
+    <!-- App Root -->
+    <div id="app" class="flex flex-col flex-1 min-h-screen">
+        <!-- Application dynamic rendering target -->
+    </div>
+
+    <script>
+        // Internationalization Dictionary
+        const I18N = {
+            en: {
+                title: "CITYSHIELD RESILIENCE",
+                tagline: "Predict. Protect. Respond. Recover.",
+                org: "Nova City Resilience Command",
+                sysStatus: "Systems Operational",
+                activeIncidents: "Active Incidents",
+                highRiskZones: "High-Risk Zones",
+                infraAlerts: "Infrastructure Alerts",
+                essentialServices: "Essential Services",
+                citizenReports: "Citizen Reports",
+                aiRecs: "AI Recs Pending",
+                searchPlaceholder: "Search incidents, zones, facilities...",
+                simTitle: "Resilience Simulation Engine",
+                approve: "Approve Plan",
+                reject: "Reject",
+                modify: "Modify Parameters",
+                liveTicker: "LIVE DEMO STREAM",
+                confidence: "Confidence",
+                evidence: "Evidence",
+                why: "AI Reasoning Factor"
+            },
+            hi: {
+                title: "सिटीशील्ड रेजिलिएंस",
+                tagline: "पूर्वानुमान। सुरक्षा। प्रतिक्रिया। पुनर्प्राप्ति।",
+                org: "नोवा सिटी लचीलापन कमान",
+                sysStatus: "सभी प्रणालियाँ चालू हैं",
+                activeIncidents: "सक्रिय घटनाएँ",
+                highRiskZones: "उच्च जोखिम वाले क्षेत्र",
+                infraAlerts: "इन्फ्रास्ट्रक्चर अलर्ट",
+                essentialServices: "आवश्यक सेवाएं",
+                citizenReports: "नागरिक रिपोर्टें",
+                aiRecs: "एआई सिफारिशें लंबित",
+                searchPlaceholder: "घटनाओं, क्षेत्रों, सुविधाओं को खोजें...",
+                simTitle: "लचीलापन सिमुलेशन इंजन",
+                approve: "योजना स्वीकृत करें",
+                reject: "अस्वीकार",
+                modify: "पैरामीटर बदलें",
+                liveTicker: "लाइव डेमो स्ट्रीम",
+                confidence: "विश्वास स्तर",
+                evidence: "साक्ष्य",
+                why: "एआई तर्क कारक"
+            },
+            kn: {
+                title: "ಸಿಟಿಶೀಲ್ಡ್ ರೆಸಿಲಿಯನ್ಸ್",
+                tagline: "ಮುನ್ಸೂಚನೆ. ರಕ್ಷಣೆ. ಪ್ರತಿಕ್ರಿಯೆ. ಚೇತರಿಕೆ.",
+                org: "ನೋವಾ ಸಿಟಿ ರೆಸಿಲಿಯನ್ಸ್ ಕಮಾಂಡ್",
+                sysStatus: "ವ್ಯವಸ್ಥೆಗಳು ಕಾರ್ಯಾಚರಣೆಯಲ್ಲಿವೆ",
+                activeIncidents: "ಸಕ್ರಿಯ ಘಟನೆಗಳು",
+                highRiskZones: "ಹೆಚ್ಚಿನ ಅಪಾಯದ ವಲಯಗಳು",
+                infraAlerts: "ಮೂಲಸೌಕರ್ಯ ಎಚ್ಚರಿಕೆಗಳು",
+                essentialServices: "ಅಗತ್ಯ ಸೇವೆಗಳು",
+                citizenReports: "ನಾಗರಿಕ ವರದಿಗಳು",
+                aiRecs: "AI ಶಿಫಾರಸುಗಳು ಬಾಕಿ ಇವೆ",
+                searchPlaceholder: "ಘಟನೆಗಳು, ಸ್ಥಳಗಳನ್ನು ಹುಡುಕಿ...",
+                simTitle: "ರೆಸಿಲಿಯನ್ಸ್ ಸಿಮ್ಯುಲೇಶನ್ ಎಂಜಿನ್",
+                approve: "ಯೋಜನೆ ಅನುಮೋದಿಸಿ",
+                reject: "ತಿರಸ್ಕರಿಸಿ",
+                modify: "ಪರಿಷ್ಕರಿಸಿ",
+                liveTicker: "ಲೈವ್ ಡೆಮೊ ಸ್ಟ್ರೀಮ್",
+                confidence: "ಆತ್ಮವಿಶ್ವಾಸ ಮಟ್ಟ",
+                evidence: "ಸಾಕ್ಷ್ಯಗಳು",
+                why: "AI ವಿವರಣೆ"
+            },
+            es: {
+                title: "CITYSHIELD RESILIENCE",
+                tagline: "Predecir. Proteger. Responder. Recuperar.",
+                org: "Comando de Resiliencia Nova City",
+                sysStatus: "Sistemas Operativos",
+                activeIncidents: "Incidentes Activos",
+                highRiskZones: "Zonas de Alto Riesgo",
+                infraAlerts: "Alertas Infraestructura",
+                essentialServices: "Servicios Esenciales",
+                citizenReports: "Reportes Ciudadanos",
+                aiRecs: "Recomendaciones IA",
+                searchPlaceholder: "Buscar incidentes, infraestructura...",
+                simTitle: "Motor de Simulación de Resiliencia",
+                approve: "Aprobar Plan",
+                reject: "Rechazar",
+                modify: "Modificar",
+                liveTicker: "STREAM EN VIVO",
+                confidence: "Confianza",
+                evidence: "Evidencia",
+                why: "Razonamiento IA"
+            },
+            fr: {
+                title: "CITYSHIELD RESILIENCE",
+                tagline: "Prévoir. Protéger. Répondre. Rétablir.",
+                org: "Commandement de Résilience Nova City",
+                sysStatus: "Systèmes Opérationnels",
+                activeIncidents: "Incidents Actifs",
+                highRiskZones: "Zones à Risque Élevé",
+                infraAlerts: "Alertes Infrastructure",
+                essentialServices: "Services Essentiels",
+                citizenReports: "Signalements Citoyens",
+                aiRecs: "Recommandations IA",
+                searchPlaceholder: "Rechercher des incidents, zones...",
+                simTitle: "Moteur de Simulation de Résilience",
+                approve: "Approuver le Plan",
+                reject: "Rejeter",
+                modify: "Modifier",
+                liveTicker: "FLUX EN DIRECT",
+                confidence: "Confiance",
+                evidence: "Preuves",
+                why: "Raisonnement IA"
+            }
+        };
+
+        // Application Global State
+        const state = {
+            currentLang: 'en',
+            activeTab: 'overview', // overview, map, incidents, reports, risk, infra, services, simulator, ai-center, alerts, analytics, audit, settings, landing
+            searchQuery: '',
+            isLandingView: false,
+            notificationsOpen: false,
+            searchModalOpen: false,
+            selectedMapItem: null,
+            mapLayers: {
+                risk: true,
+                infrastructure: true,
+                flood: true,
+                reports: true,
+                services: true,
+                incidents: true
+            },
+            simulation: {
+                active: false,
+                type: 'rain', // rain, storm, quake, grid
+                intensity: 40,
+                duration: 6,
+                step: 1, // 1: Ready, 2: Simulating, 3: Impact Calculated, 4: Approved
+                results: null
+            },
+            cvUpload: {
+                image: null,
+                scanning: false,
+                detectedBoxes: []
+            },
+            fusedReports: [
+                { id: 'CS-10482', cat: 'Road Damage', loc: 'University Gate, Zone 4', time: '10 mins ago', desc: 'Deep pothole with standing water forming fast.', simScore: 94 },
+                { id: 'CS-10485', cat: 'Road Damage', loc: 'University Gate Rd', time: '8 mins ago', desc: 'Severe street depression disrupting traffic.', simScore: 92 },
+                { id: 'CS-10489', cat: 'Road Fault', loc: 'Main Gate University', time: '5 mins ago', desc: 'Cracked pavement causing swerving.', simScore: 91 },
+                { id: 'CS-10492', cat: 'Pothole', loc: 'University North Gate', time: '3 mins ago', desc: 'Water filled hole near entrance.', simScore: 89 },
+                { id: 'CS-10495', cat: 'Traffic Hazard', loc: 'University Blvd', time: 'Just now', desc: 'Vehicles hitting asphalt gap.', simScore: 88 }
+            ],
+            auditLogs: [
+                { id: 'AUD-9021', time: '14:28:12 UTC', event: 'Human Approval - Drainage Reroute Plan', actor: 'Ops Administrator', status: 'EXECUTED', impact: 'Zone 4 Risk Reduced' },
+                { id: 'AUD-9020', time: '14:24:05 UTC', event: 'AI Duplicate Fusion - 7 Reports Matched', actor: 'CityShield AI Engine', status: 'FUSED', impact: 'Unified Incident #INC-402 created' },
+                { id: 'AUD-9019', time: '14:15:30 UTC', event: 'Sensor Anomaly Detected - Water Pressure Drop', actor: 'IoT Telem-Subsystem B', status: 'FLAGGED', impact: 'Automated Inspector Dispatched' },
+                { id: 'AUD-9018', time: '13:50:11 UTC', event: 'Computer Vision Scan - Bridge B-204 Crack', actor: 'Drone Fleet #04', status: 'VERIFIED', impact: 'Priority Elevated to Warning' }
+            ],
+            liveTickerEvents: [
+                "● LIVE: Citizen report #CS-10501 logged in Zone 2",
+                "● SENSOR: Water pressure nominal at Central Station",
+                "● AI ENGINE: Flood forecast recalibrated for next 6h window",
+                "● INFRASTRUCTURE: Bridge B-204 structural telemetry active"
+            ],
+            activeNotifications: [
+                { id: 1, title: "Flood Risk Elevated", detail: "Zone 4 forecast saturation reaching 82%", time: "2m ago", priority: "high" },
+                { id: 2, title: "Bridge Inspection Recommended", detail: "Bridge B-204 telemetry anomaly", time: "14m ago", priority: "medium" },
+                { id: 3, title: "Citizen Reports Pending Fusion", detail: "5 new reports near University Gate", time: "22m ago", priority: "low" },
+                { id: 4, title: "Hospital H-12 Power Switched", detail: "Grid redundancy check complete", time: "1h ago", priority: "normal" }
+            ]
+        };
+
+        // Simulated City Data Coordinates (Nova City Lat/Lng centered around realistic urban map)
+        const NOVA_CITY_CENTER = [40.7128, -74.0060]; // Standard spatial center
+        const CITY_MARKERS = [
+            { id: 'INC-401', type: 'incident', title: 'Urban Flooding - Sector 4', lat: 40.7180, lng: -74.0100, severity: 'critical', desc: 'Water depth 18cm on roadway near critical corridor.', factors: ['Heavy precipitation', 'Clogged stormwater drain D-14', 'Low elevation terrain'], confidence: 89 },
+            { id: 'INC-402', type: 'incident', title: 'Road Hazard & Structural Gap', lat: 40.7100, lng: -73.9980, severity: 'elevated', desc: 'Multiple citizen reports fused. Surface collapse detected.', factors: ['7 Citizen reports', 'CV Drone Scan confirmation'], confidence: 94 },
+            { id: 'INF-204', type: 'infra', title: 'Bridge B-204 Integrity Monitor', lat: 40.7220, lng: -73.9850, status: 'warning', desc: 'Vibration frequency deviation: +14% above baseline during peak transit.', factors: ['Structural sensor strain', 'Last human inspection 92 days ago'], confidence: 78 },
+            { id: 'FAC-101', type: 'service', title: 'Central Metropolitan Hospital H-12', lat: 40.7150, lng: -74.0020, status: 'healthy', operational: '98%', desc: 'Primary trauma center. Power/Water grid healthy.', factors: ['Backup generators tested', 'Access route clear'], confidence: 99 },
+            { id: 'FAC-102', type: 'service', title: 'Water Treatment Plant North', lat: 40.7300, lng: -74.0150, status: 'warning', operational: '88%', desc: 'Pumping station 3 pressure fluctuating.', factors: ['Filter flow delta', 'Automated valve telemetry'], confidence: 85 },
+            { id: 'REP-801', type: 'report', title: 'Citizen Report: Storm Drain Overflow', lat: 40.7080, lng: -74.0120, status: 'unverified', desc: 'Debris blocking outflow grate on 5th Ave.', factors: ['User photo attached', 'Single source'], confidence: 62 }
+        ];
+
+        function getT(key) {
+            return I18N[state.currentLang][key] || I18N['en'][key] || key;
+        }
+
+        function updateLang(lang) {
+            state.currentLang = lang;
+            renderApp();
+        }
+
+        function setActiveTab(tab) {
+            state.activeTab = tab;
+            state.isLandingView = (tab === 'landing');
+            renderApp();
+            if (tab === 'map' || tab === 'overview') {
+                setTimeout(initLeafletMap, 150);
+            }
+        }
+
+        function renderApp() {
+            const app = document.getElementById('app');
+            
+            if (state.isLandingView) {
+                app.innerHTML = renderLandingPage();
+                return;
+            }
+
+            app.innerHTML = `
+                ${renderTopBar()}
+                <div class="flex flex-1 overflow-hidden relative">
+                    ${renderSidebar()}
+                    <main class="flex-1 overflow-y-auto bg-navy-950 p-4 md:p-6 space-y-6 relative">
+                        ${renderLiveTicker()}
+                        ${renderMainTabContent()}
+                    </main>
+                </div>
+                ${renderNotificationsDrawer()}
+                ${renderSearchModal()}
+            `;
+
+            // Post-render attachments
+            if (state.activeTab === 'overview' || state.activeTab === 'map') {
+                setTimeout(initLeafletMap, 100);
+            }
+            if (state.activeTab === 'analytics') {
+                setTimeout(initAnalyticsCharts, 100);
+            }
+        }
+
+        function renderTopBar() {
+            return `
+                <header class="bg-navy-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between z-30 sticky top-0 shadow-md">
+                    <div class="flex items-center space-x-4">
+                        <button onclick="setActiveTab('landing')" class="flex items-center space-x-3 group">
+                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500 group-hover:text-navy-950 transition">
+                                <i class="fa-solid fa-shield-halved text-lg"></i>
+                            </div>
+                            <div class="text-left">
+                                <h1 class="text-sm font-bold tracking-wider text-slate-100 flex items-center gap-2">
+                                    CITYSHIELD <span class="text-cyan-400 text-xs px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800">RESILIENCE</span>
+                                </h1>
+                                <p class="text-[10px] text-slate-400 font-mono tracking-tight">${getT('tagline')}</p>
+                            </div>
+                        </button>
+                        
+                        <div class="hidden lg:flex items-center space-x-2 pl-4 border-l border-slate-800 text-xs text-slate-300">
+                            <i class="fa-solid fa-location-dot text-cyan-400"></i>
+                            <span class="font-medium">Nova City HQ</span>
+                            <span class="text-slate-600">|</span>
+                            <span class="font-mono text-slate-400">14:32:08 UTC</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <!-- Global Live Search Button -->
+                        <button onclick="state.searchModalOpen = true; renderApp();" class="hidden sm:flex items-center space-x-2 bg-navy-950 border border-slate-700 hover:border-cyan-500/50 px-3 py-1.5 rounded-lg text-xs text-slate-400 transition w-48 lg:w-64">
+                            <i class="fa-solid fa-magnifying-glass text-slate-500"></i>
+                            <span class="truncate">${getT('searchPlaceholder')}</span>
+                            <kbd class="ml-auto bg-slate-800 text-[10px] px-1.5 py-0.5 rounded text-slate-400 font-mono">⌘K</kbd>
+                        </button>
+
+                        <!-- System Operational Status -->
+                        <div class="hidden md:flex items-center space-x-2 bg-emerald-950/40 border border-emerald-800/60 px-2.5 py-1 rounded-full text-xs text-emerald-400">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span class="font-medium">${getT('sysStatus')}</span>
+                        </div>
+
+                        <!-- Language Switcher -->
+                        <div class="relative">
+                            <select onchange="updateLang(this.value)" class="bg-navy-950 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                                <option value="en" ${state.currentLang==='en'?'selected':''}>EN 🇺🇸</option>
+                                <option value="hi" ${state.currentLang==='hi'?'selected':''}>HI 🇮🇳</option>
+                                <option value="kn" ${state.currentLang==='kn'?'selected':''}>KN 🇮🇳</option>
+                                <option value="es" ${state.currentLang==='es'?'selected':''}>ES 🇪🇸</option>
+                                <option value="fr" ${state.currentLang==='fr'?'selected':''}>FR 🇫🇷</option>
+                            </select>
+                        </div>
+
+                        <!-- Notification Trigger -->
+                        <button onclick="state.notificationsOpen = !state.notificationsOpen; renderApp();" class="relative p-2 rounded-lg bg-navy-950 border border-slate-700 hover:text-cyan-400 transition text-slate-300">
+                            <i class="fa-regular fa-bell text-sm"></i>
+                            <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">4</span>
+                        </button>
+
+                        <!-- User Badge -->
+                        <div class="flex items-center space-x-2 border-l border-slate-800 pl-3">
+                            <div class="w-7 h-7 rounded-full bg-cyan-900/60 border border-cyan-500 flex items-center justify-center text-cyan-300 text-xs font-bold">
+                                OA
+                            </div>
+                            <div class="hidden xl:block text-left">
+                                <div class="text-xs font-medium text-slate-200">Ops Admin</div>
+                                <div class="text-[9px] text-cyan-400 uppercase font-mono">Incident Commander</div>
+                            </div>
+                        </div>
+
+                        <!-- Demo Badge -->
+                        <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] px-2 py-0.5 rounded font-mono hidden sm:inline-block">
+                            DEMO
+                        </span>
+                    </div>
+                </header>
+            `;
+        }
+
+        function renderSidebar() {
+            const navItems = [
+                { id: 'overview', label: 'Overview Dashboard', icon: 'fa-gauge-high' },
+                { id: 'map', label: 'Live City Map', icon: 'fa-map-location-dot' },
+                { id: 'simulator', label: 'Disaster Simulator', icon: 'fa-volcano', badge: 'WOW' },
+                { id: 'incidents', label: 'Incident Command', icon: 'fa-triangle-exclamation' },
+                { id: 'reports', label: 'Citizen Report Center', icon: 'fa-users-viewfinder' },
+                { id: 'risk', label: 'Flood & Risk Intelligence', icon: 'fa-cloud-showers-heavy' },
+                { id: 'infra', label: 'Infrastructure Health', icon: 'fa-bridge-water' },
+                { id: 'services', label: 'Essential Services', icon: 'fa-hospital' },
+                { id: 'ai-center', label: 'AI Response Center', icon: 'fa-brain' },
+                { id: 'alerts', label: 'Emergency Alerts', icon: 'fa-bullhorn' },
+                { id: 'analytics', label: 'City Analytics', icon: 'fa-chart-line' },
+                { id: 'audit', label: 'Audit & Evidence Trail', icon: 'fa-square-check' },
+                { id: 'settings', label: 'Settings & Roles', icon: 'fa-sliders' }
+            ];
+
+            return `
+                <aside class="w-64 bg-navy-900 border-r border-slate-800 flex flex-col justify-between hidden md:flex shrink-0 z-20">
+                    <div class="p-3 space-y-1">
+                        <div class="px-3 py-2 text-[10px] font-mono tracking-wider text-slate-400 uppercase">Command Navigation</div>
+                        ${navItems.map(item => `
+                            <button onclick="setActiveTab('${item.id}')" 
+                                class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition ${state.activeTab === item.id ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 font-semibold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}">
+                                <div class="flex items-center space-x-3 truncate">
+                                    <i class="fa-solid ${item.icon} w-4 text-center ${state.activeTab === item.id ? 'text-cyan-400' : 'text-slate-500'}"></i>
+                                    <span class="truncate">${item.label}</span>
+                                </div>
+                                ${item.badge ? `<span class="bg-cyan-500 text-navy-950 font-bold text-[9px] px-1.5 py-0.2 rounded font-mono">${item.badge}</span>` : ''}
+                            </button>
+                        `).map(x => x).join('')}
+                    </div>
+
+                    <div class="p-3 border-t border-slate-800 bg-navy-950/50 space-y-2">
+                        <div class="flex items-center space-x-2 text-xs text-slate-300">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                            <span class="font-semibold text-slate-200 text-[11px] truncate">${getT('org')}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400 flex justify-between font-mono">
+                            <span>Level 4 Access</span>
+                            <span class="text-emerald-400">● Live Feed</span>
+                        </div>
+                    </div>
+                </aside>
+            `;
+        }
+
+        function renderLiveTicker() {
+            return `
+                <div class="bg-navy-900/80 border border-cyan-900/40 rounded-lg px-4 py-2 flex items-center justify-between text-xs text-slate-300 shadow-inner">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <span class="flex items-center space-x-1.5 text-cyan-400 font-bold text-[11px] shrink-0 font-mono">
+                            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                            <span>${getT('liveTicker')}</span>
+                        </span>
+                        <span class="text-slate-600">|</span>
+                        <div id="tickerText" class="truncate text-slate-300 font-mono text-[11px]">
+                            ${state.liveTickerEvents[0]}
+                        </div>
+                    </div>
+                    <button onclick="rotateTicker()" class="text-slate-500 hover:text-cyan-400 text-xs shrink-0 ml-2">
+                        <i class="fa-solid fa-rotate text-xs"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function rotateTicker() {
+            state.liveTickerEvents.push(state.liveTickerEvents.shift());
+            const el = document.getElementById('tickerText');
+            if (el) el.innerText = state.liveTickerEvents[0];
+        }
+
+        function renderMainTabContent() {
+            switch(state.activeTab) {
+                case 'overview': return renderOverviewDashboard();
+                case 'map': return renderLiveCityMapView();
+                case 'simulator': return renderDisasterSimulatorView();
+                case 'incidents': return renderIncidentCommandView();
+                case 'reports': return renderCitizenReportsView();
+                case 'risk': return renderRiskIntelligenceView();
+                case 'infra': return renderInfrastructureHealthView();
+                case 'services': return renderEssentialServicesView();
+                case 'ai-center': return renderAiResponseCenterView();
+                case 'alerts': return renderEmergencyAlertsView();
+                case 'analytics': return renderAnalyticsView();
+                case 'audit': return renderAuditTrailView();
+                case 'settings': return renderSettingsView();
+                default: return renderOverviewDashboard();
+            }
+        }
+
+        function renderOverviewDashboard() {
+            return `
+                <div class="space-y-6">
+                    <!-- Page Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-100 tracking-tight">Urban Resilience Overview</h2>
+                            <p class="text-xs text-slate-400">Real-time cross-domain intelligence across infrastructure, flood risks, and essential services.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="setActiveTab('simulator')" class="bg-cyan-500 hover:bg-cyan-400 text-navy-950 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-2 shadow-lg shadow-cyan-500/20 transition">
+                                <i class="fa-solid fa-play"></i>
+                                <span>Run Disaster Scenario</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Top KPI Cards Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        ${renderKpiCard(getT('activeIncidents'), '24', '+3 today', 'fa-triangle-exclamation', 'text-amber-400', 'bg-amber-950/30 border-amber-800/40')}
+                        ${renderKpiCard(getT('highRiskZones'), '6', '2 Critical', 'fa-shield-cat', 'text-red-400', 'bg-red-950/30 border-red-800/40')}
+                        ${renderKpiCard(getT('infraAlerts'), '11', 'Inspection Req', 'fa-bridge', 'text-yellow-400', 'bg-yellow-950/30 border-yellow-800/40')}
+                        ${renderKpiCard(getT('essentialServices'), '94%', 'Optimal', 'fa-hospital', 'text-emerald-400', 'bg-emerald-950/30 border-emerald-800/40')}
+                        ${renderKpiCard(getT('citizenReports'), '138', '5 Pending Fusion', 'fa-users', 'text-cyan-400', 'bg-cyan-950/30 border-cyan-800/40')}
+                        ${renderKpiCard(getT('aiRecs'), '17', 'Action Req', 'fa-brain', 'text-purple-400', 'bg-purple-950/30 border-purple-800/40')}
+                    </div>
+
+                    <!-- Main Hero GIS Map & Details Split -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 glass-panel rounded-xl p-4 flex flex-col space-y-3 relative">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-map text-cyan-400 text-sm"></i>
+                                    <h3 class="text-sm font-bold text-slate-200">Live Spatial GIS Command Layer</h3>
+                                </div>
+                                <!-- Map Layers Toggle -->
+                                <div class="flex flex-wrap gap-1 text-[11px]">
+                                    <button onclick="toggleMapLayer('risk')" class="px-2 py-0.5 rounded border ${state.mapLayers.risk?'bg-cyan-950 border-cyan-500 text-cyan-300':'bg-navy-950 border-slate-700 text-slate-500'}">Risk</button>
+                                    <button onclick="toggleMapLayer('infrastructure')" class="px-2 py-0.5 rounded border ${state.mapLayers.infrastructure?'bg-cyan-950 border-cyan-500 text-cyan-300':'bg-navy-950 border-slate-700 text-slate-500'}">Infra</button>
+                                    <button onclick="toggleMapLayer('flood')" class="px-2 py-0.5 rounded border ${state.mapLayers.flood?'bg-cyan-950 border-cyan-500 text-cyan-300':'bg-navy-950 border-slate-700 text-slate-500'}">Flood</button>
+                                    <button onclick="toggleMapLayer('services')" class="px-2 py-0.5 rounded border ${state.mapLayers.services?'bg-cyan-950 border-cyan-500 text-cyan-300':'bg-navy-950 border-slate-700 text-slate-500'}">Services</button>
+                                </div>
+                            </div>
+                            <div id="gisMap" class="w-full h-96 rounded-lg border border-slate-800 z-10"></div>
+                        </div>
+
+                        <!-- Right Side Evidence & Quick Action Context -->
+                        <div class="glass-panel rounded-xl p-4 flex flex-col space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    <i class="fa-solid fa-microscope text-cyan-400"></i> Evidence & Context
+                                </h3>
+                                <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono">Select Marker</span>
+                            </div>
+
+                            <div id="mapDetailPanel" class="flex-1 text-xs text-slate-300 space-y-3 overflow-y-auto">
+                                ${state.selectedMapItem ? renderSelectedMapItemDetail(state.selectedMapItem) : `
+                                    <div class="text-center py-12 text-slate-500 space-y-2">
+                                        <i class="fa-solid fa-hand-pointer text-2xl text-slate-600 animate-bounce"></i>
+                                        <p>Click any map marker or flood polygon to view explainable AI factors and evidence breakdown.</p>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderKpiCard(title, val, trend, icon, colorClass, borderClass) {
+            return `
+                <div class="glass-panel rounded-xl p-3 border ${borderClass} hover:border-cyan-500/50 transition cursor-pointer" onclick="setActiveTab('incidents')">
+                    <div class="flex items-center justify-between text-slate-400 mb-1">
+                        <span class="text-[11px] font-medium truncate">${title}</span>
+                        <i class="fa-solid ${icon} ${colorClass} text-xs"></i>
+                    </div>
+                    <div class="text-lg font-bold text-slate-100 font-mono">${val}</div>
+                    <div class="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+                        <span>${trend}</span>
+                        <svg class="w-8 h-3 text-cyan-400" viewBox="0 0 30 10">
+                            <path d="M0,8 Q7,2 15,6 T30,2" fill="none" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleMapLayer(layerKey) {
+            state.mapLayers[layerKey] = !state.mapLayers[layerKey];
+            renderApp();
+        }
+
+        function renderSelectedMapItemDetail(item) {
+            return `
+                <div class="space-y-3">
+                    <div class="bg-navy-950 p-2.5 rounded-lg border border-slate-700">
+                        <div class="text-[10px] text-cyan-400 font-mono font-bold uppercase">${item.type} • ID: ${item.id}</div>
+                        <div class="text-sm font-bold text-slate-100 mt-0.5">${item.title}</div>
+                        <p class="text-slate-300 mt-1 text-[11px]">${item.desc}</p>
+                    </div>
+
+                    <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 space-y-2">
+                        <div class="text-[11px] font-bold text-slate-200 flex justify-between">
+                            <span>AI Confidence Score</span>
+                            <span class="text-cyan-400 font-mono">${item.confidence}%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-cyan-500 h-full" style="width: ${item.confidence}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="text-[11px] font-bold text-slate-400">Contributing Evidence Factors:</div>
+                        <ul class="space-y-1 text-[11px]">
+                            ${item.factors.map(f => `
+                                <li class="flex items-start space-x-2 text-slate-300">
+                                    <i class="fa-solid fa-circle-dot text-[8px] text-cyan-400 mt-1"></i>
+                                    <span>${f}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-800 flex gap-2">
+                        <button onclick="approveAction('${item.id}')" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 rounded text-xs transition">
+                            Initiate Dispatch
+                        </button>
+                        <button onclick="state.selectedMapItem = null; renderApp();" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        let leafletMapInstance = null;
+        function initLeafletMap() {
+            const container = document.getElementById('gisMap');
+            if (!container) return;
+
+            if (leafletMapInstance) {
+                leafletMapInstance.remove();
+            }
+
+            // Initialize map with Dark theme tile layer
+            leafletMapInstance = L.map('gisMap', {
+                center: NOVA_CITY_CENTER,
+                zoom: 13,
+                zoomControl: false
+            });
+
+            // Dark Matter Free Tiles
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(leafletMapInstance);
+
+            L.control.zoom({ position: 'bottomright' }).addTo(leafletMapInstance);
+
+            // Add Simulated Flood Polygon
+            if (state.mapLayers.flood || state.simulation.active) {
+                const floodPoly = L.polygon([
+                    [40.7150, -74.0150],
+                    [40.7250, -74.0120],
+                    [40.7220, -73.9950],
+                    [40.7100, -74.0050]
+                ], {
+                    color: state.simulation.active ? '#EF4444' : '#06B6D4',
+                    fillColor: state.simulation.active ? '#EF4444' : '#06B6D4',
+                    fillOpacity: state.simulation.active ? 0.45 : 0.25,
+                    weight: 2
+                }).addTo(leafletMapInstance);
+
+                floodPoly.bindTooltip("Zone 4 - Flood Inundation Risk Area", { sticky: true });
+            }
+
+            // Add Markers
+            CITY_MARKERS.forEach(item => {
+                let color = '#06B6D4';
+                if (item.severity === 'critical' || item.status === 'warning') color = '#EF4444';
+                if (item.status === 'healthy') color = '#10B981';
+
+                const customMarker = L.circleMarker([item.lat, item.lng], {
+                    radius: 9,
+                    fillColor: color,
+                    color: '#FFFFFF',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).addTo(leafletMapInstance);
+
+                customMarker.on('click', () => {
+                    state.selectedMapItem = item;
+                    renderApp();
+                });
+            });
+        }
+
+        function renderLiveCityMapView() {
+            return `
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-100">AI Spatial Risk Map</h2>
+                            <p class="text-xs text-slate-400">Multi-layered municipal GIS analysis with localized flood & asset telemetry.</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4">
+                        <div id="gisMap" class="w-full h-[600px] rounded-lg border border-slate-800"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDisasterSimulatorView() {
+            return `
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="bg-cyan-500/20 text-cyan-400 font-mono text-[10px] px-2 py-0.5 rounded font-bold border border-cyan-500/40">SIGNATURE MODULE</span>
+                                <h2 class="text-xl font-bold text-slate-100">${getT('simTitle')}</h2>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">Stress-test municipal infrastructure, simulate extreme hydro-meteorological events, and generate actionable resilience mitigation plans.</p>
+                        </div>
+                    </div>
+
+                    <!-- Simulator Controls Card -->
+                    <div class="glass-panel-glow rounded-xl p-5 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-slate-300 block mb-1">Scenario Hazards</label>
+                                <select id="simHazardSelect" class="w-full bg-navy-950 border border-slate-700 text-slate-200 text-xs rounded-lg p-2 focus:border-cyan-500">
+                                    <option value="rain">🌊 Extreme Rainfall (+40% Precipitation)</option>
+                                    <option value="storm">🌪️ Severe Tropical Storm Category 2</option>
+                                    <option value="quake">🌍 Seismic Tremor (Magnitude 5.8)</option>
+                                    <option value="grid">⚡ Power Grid Cascading Failure</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-300 block mb-1">Duration Window</label>
+                                <select class="w-full bg-navy-950 border border-slate-700 text-slate-200 text-xs rounded-lg p-2">
+                                    <option>6 Hours</option>
+                                    <option>12 Hours</option>
+                                    <option>24 Hours</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="runResilienceSimulation()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-navy-950 font-bold py-2 rounded-lg text-xs transition shadow-lg shadow-cyan-500/30 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-bolt"></i>
+                                    <span>RUN RESILIENCE SCENARIO</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Live Impact Output -->
+                    ${state.simulation.active ? `
+                        <div class="space-y-6 animate-fade-in">
+                            <!-- Impact KPI Matrix -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-red-950/40 border border-red-800/60 p-4 rounded-xl">
+                                    <div class="text-xs text-red-400 font-medium">Affected Zones</div>
+                                    <div class="text-2xl font-bold text-slate-100 font-mono mt-1">6 Zones</div>
+                                    <div class="text-[10px] text-slate-400 mt-1">Zone 4 & 7 at max capacity</div>
+                                </div>
+                                <div class="bg-amber-950/40 border border-amber-800/60 p-4 rounded-xl">
+                                    <div class="text-xs text-amber-400 font-medium">At-Risk Roads</div>
+                                    <div class="text-2xl font-bold text-slate-100 font-mono mt-1">4 Corridors</div>
+                                    <div class="text-[10px] text-slate-400 mt-1">Includes Hospital Access Way</div>
+                                </div>
+                                <div class="bg-yellow-950/40 border border-yellow-800/60 p-4 rounded-xl">
+                                    <div class="text-xs text-yellow-400 font-medium">Infrastructure Risk</div>
+                                    <div class="text-2xl font-bold text-slate-100 font-mono mt-1">Bridge B-204</div>
+                                    <div class="text-[10px] text-slate-400 mt-1">Vibration anomaly risk high</div>
+                                </div>
+                                <div class="bg-cyan-950/40 border border-cyan-800/60 p-4 rounded-xl">
+                                    <div class="text-xs text-cyan-400 font-medium">Essential Service Load</div>
+                                    <div class="text-2xl font-bold text-slate-100 font-mono mt-1">Hospital H-12</div>
+                                    <div class="text-[10px] text-slate-400 mt-1">Access route restricted</div>
+                                </div>
+                            </div>
+
+                            <!-- Map and Generated AI Mitigation Plan -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="glass-panel rounded-xl p-4">
+                                    <h3 class="text-sm font-bold text-slate-200 mb-2">Simulated Spatial Inundation Overlay</h3>
+                                    <div id="gisMap" class="w-full h-80 rounded-lg border border-slate-800"></div>
+                                </div>
+
+                                <div class="glass-panel rounded-xl p-4 flex flex-col justify-between space-y-4">
+                                    <div>
+                                        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                                            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                                <i class="fa-solid fa-brain text-purple-400"></i> AI Generated Response Plan
+                                            </h3>
+                                            <span class="text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-mono">Confidence: 88%</span>
+                                        </div>
+
+                                        <div class="space-y-2 text-xs">
+                                            <div class="p-2 bg-navy-950 rounded border border-slate-800">
+                                                <span class="text-cyan-400 font-bold">1. Dispatch Municipal Drainage Crew:</span>
+                                                <p class="text-slate-300 text-[11px]">Deploy mobile pump unit P-04 to Drainage Outlet D-14 near University Gate.</p>
+                                            </div>
+                                            <div class="p-2 bg-navy-950 rounded border border-slate-800">
+                                                <span class="text-cyan-400 font-bold">2. Hospital H-12 Transit Reroute:</span>
+                                                <p class="text-slate-300 text-[11px]">Activate emergency bypass lane on 8th Ave for trauma ambulances.</p>
+                                            </div>
+                                            <div class="p-2 bg-navy-950 rounded border border-slate-800">
+                                                <span class="text-cyan-400 font-bold">3. Public Broadcast Advisory:</span>
+                                                <p class="text-slate-300 text-[11px]">Issue localized warning alert to Zone 4 residents regarding standing water.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-3 border-t border-slate-800 flex gap-3">
+                                        <button onclick="approveSimulationPlan()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg text-xs transition shadow-lg shadow-emerald-600/20">
+                                            <i class="fa-solid fa-check mr-1"></i> Approve Response Plan
+                                        </button>
+                                        <button onclick="state.simulation.active = false; renderApp();" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-lg">
+                                            Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="glass-panel rounded-xl p-12 text-center text-slate-500 space-y-3">
+                            <i class="fa-solid fa-cloud-showers-water text-4xl text-slate-600"></i>
+                            <h3 class="text-slate-300 font-medium">No Active Simulation Running</h3>
+                            <p class="text-xs max-w-md mx-auto">Select a hazard parameter above and click "Run Resilience Scenario" to trigger real-time AI impact calculations and spatial map overlays.</p>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function runResilienceSimulation() {
+            state.simulation.active = true;
+            renderApp();
+            setTimeout(initLeafletMap, 100);
+        }
+
+        function approveSimulationPlan() {
+            state.auditLogs.unshift({
+                id: 'AUD-' + Math.floor(1000 + Math.random() * 9000),
+                time: new Date().toISOString().substring(11, 19) + ' UTC',
+                event: 'Simulated Response Plan Execution Approved',
+                actor: 'Operations Administrator',
+                status: 'APPROVED',
+                impact: 'Resource dispatch triggered for Zone 4'
+            });
+            alert("Response Plan Approved! Action logged to immutable audit trail.");
+            state.simulation.active = false;
+            renderApp();
+        }
+
+        function renderIncidentCommandView() {
+            return `
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100">Incident Command Center</h2>
+                        <p class="text-xs text-slate-400">Structured AI intelligence workflow pipeline from citizen intake to human review.</p>
+                    </div>
+
+                    <!-- Workflow Pipeline Visualization -->
+                    <div class="glass-panel rounded-xl p-4 overflow-x-auto">
+                        <div class="flex items-center justify-between min-w-[700px] text-center text-xs">
+                            ${renderPipelineNode('1', 'INTAKE', 'Active', 'fa-inbox')}
+                            <i class="fa-solid fa-chevron-right text-slate-600"></i>
+                            ${renderPipelineNode('2', 'EVIDENCE', 'Complete', 'fa-magnifying-glass')}
+                            <i class="fa-solid fa-chevron-right text-slate-600"></i>
+                            ${renderPipelineNode('3', 'FUSION', '7 Fused', 'fa-object-group')}
+                            <i class="fa-solid fa-chevron-right text-slate-600"></i>
+                            ${renderPipelineNode('4', 'AI RECS', 'Generated', 'fa-lightbulb')}
+                            <i class="fa-solid fa-chevron-right text-slate-600"></i>
+                            ${renderPipelineNode('5', 'DECISION', 'Pending', 'fa-user-check')}
+                        </div>
+                    </div>
+
+                    <!-- Incident List Table -->
+                    <div class="glass-panel rounded-xl p-4 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-200">Active High-Priority Incidents</h3>
+                        <div class="space-y-2">
+                            ${CITY_MARKERS.map(inc => `
+                                <div class="bg-navy-950 p-3 rounded-lg border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:border-cyan-500/40 transition">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-xs font-mono text-cyan-400 font-bold">${inc.id}</span>
+                                            <span class="text-xs font-bold text-slate-100">${inc.title}</span>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${inc.severity==='critical'?'bg-red-950 text-red-400 border border-red-800':'bg-amber-950 text-amber-400 border border-amber-800'}">${inc.severity || inc.status}</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400">${inc.desc}</p>
+                                    </div>
+                                    <div class="flex items-center space-x-2 shrink-0">
+                                        <button onclick="state.selectedMapItem = CITY_MARKERS[0]; setActiveTab('overview');" class="bg-navy-900 hover:bg-slate-800 border border-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs transition">
+                                            View Evidence
+                                        </button>
+                                        <button onclick="approveAction('${inc.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-1.5 rounded text-xs transition">
+                                            Approve Action
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPipelineNode(step, title, sub, icon) {
+            return `
+                <div class="flex flex-col items-center space-y-1">
+                    <div class="w-10 h-10 rounded-full bg-cyan-950 border border-cyan-500 text-cyan-400 flex items-center justify-center font-bold">
+                        <i class="fa-solid ${icon}"></i>
+                    </div>
+                    <span class="font-bold text-slate-200 text-[11px]">${title}</span>
+                    <span class="text-[10px] text-slate-500 font-mono">${sub}</span>
+                </div>
+            `;
+        }
+
+        function renderCitizenReportsView() {
+            return `
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100">Citizen Report Intelligence & Fusion</h2>
+                        <p class="text-xs text-slate-400">Semantic and spatial duplicate report grouping powered by natural language matching.</p>
+                    </div>
+
+                    <!-- Computer Vision Road Hazard Scanner Demo -->
+                    <div class="glass-panel rounded-xl p-5 space-y-4 border border-cyan-500/30">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-cyan-400"></i> Computer Vision Damage Detector
+                            </h3>
+                            <span class="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded font-mono">Live Demo</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="relative bg-navy-950 h-48 rounded-lg border border-slate-800 overflow-hidden flex items-center justify-center">
+                                ${state.cvUpload.scanning ? `
+                                    <div class="text-center space-y-2">
+                                        <i class="fa-solid fa-spinner fa-spin text-2xl text-cyan-400"></i>
+                                        <p class="text-xs text-slate-400 font-mono">Scanning image features...</p>
+                                    </div>
+                                ` : `
+                                    <img src="https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=600&q=80" class="w-full h-full object-cover opacity-70" alt="Road damage" />
+                                    <div class="cv-box top-12 left-1/3 w-28 h-20 rounded">
+                                        <span class="bg-red-500 text-white text-[9px] px-1 font-mono font-bold absolute -top-4 left-0">POTHOLE (89%)</span>
+                                    </div>
+                                `}
+                            </div>
+
+                            <div class="space-y-3 flex flex-col justify-between">
+                                <div class="space-y-1 text-xs">
+                                    <div class="text-slate-200 font-bold">Detection Result: Severe Road Surface Depression</div>
+                                    <p class="text-slate-400 text-[11px]">Computer vision engine detected structural gap with standing water. Requires human verification before work order dispatch.</p>
+                                </div>
+                                <button onclick="triggerCvScan()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded-lg text-xs transition">
+                                    Upload / Re-Scan Road Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fused Duplicate Reports Feature -->
+                    <div class="glass-panel rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                <i class="fa-solid fa-object-group text-cyan-400"></i> Duplicate Report Fusion (7 Reports → 1 Incident)
+                            </h3>
+                            <button onclick="fuseReportsAction()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-3 py-1 rounded transition">
+                                Run Semantic Fusion
+                            </button>
+                        </div>
+
+                        <div class="space-y-2">
+                            ${state.fusedReports.map(rep => `
+                                <div class="p-3 bg-navy-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
+                                    <div class="space-y-0.5">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="font-mono text-cyan-400 font-bold">${rep.id}</span>
+                                            <span class="text-slate-200 font-medium">${rep.loc}</span>
+                                            <span class="text-slate-500 text-[10px]">${rep.time}</span>
+                                        </div>
+                                        <p class="text-slate-400 text-[11px]">${rep.desc}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-purple-400 font-mono text-[11px] font-bold">${rep.simScore}% Match</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function triggerCvScan() {
+            state.cvUpload.scanning = true;
+            renderApp();
+            setTimeout(() => {
+                state.cvUpload.scanning = false;
+                renderApp();
+            }, 1200);
+        }
+
+        function fuseReportsAction() {
+            alert("Successfully fused 5 citizen report inputs into 1 unified incident context #INC-402!");
+        }
+
+        function renderRiskIntelligenceView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">Flood & Risk Intelligence Module</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                        <div class="glass-panel p-4 rounded-xl space-y-1">
+                            <span class="text-slate-400">0 - 6 Hours Forecast</span>
+                            <div class="text-lg font-bold text-amber-400">Elevated (78%)</div>
+                            <p class="text-[11px] text-slate-500">Zone 4 drainage saturation expected</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-1">
+                            <span class="text-slate-400">6 - 12 Hours Forecast</span>
+                            <div class="text-lg font-bold text-red-400">Critical (85%)</div>
+                            <p class="text-[11px] text-slate-500">Peak runoff during morning transit</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-1">
+                            <span class="text-slate-400">12 - 24 Hours Forecast</span>
+                            <div class="text-lg font-bold text-yellow-400">Moderate (60%)</div>
+                            <p class="text-[11px] text-slate-500">Precipitation tapering off</p>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-1">
+                            <span class="text-slate-400">24 - 48 Hours Forecast</span>
+                            <div class="text-lg font-bold text-emerald-400">Normal (30%)</div>
+                            <p class="text-[11px] text-slate-500">Water levels returning to baseline</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderInfrastructureHealthView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">Infrastructure Intelligence</h2>
+                    <div class="glass-panel p-4 rounded-xl space-y-3">
+                        <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
+                            <span class="font-bold text-slate-200">Asset: Bridge B-204</span>
+                            <span class="text-amber-400 font-mono font-bold">Inspection Recommended</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Telemetry shows vibrational frequency deviations during heavy load transit windows.</p>
+                        <button onclick="approveAction('INF-204')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-3 py-1.5 rounded">
+                            Dispatch Inspection Drone
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEssentialServicesView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">Essential Services Telemetry</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="glass-panel p-4 rounded-xl space-y-2">
+                            <div class="text-xs font-bold text-slate-300">🏥 Hospitals & Emergency Trauma</div>
+                            <div class="text-xl font-bold text-emerald-400 font-mono">98% Operational</div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full"><div class="bg-emerald-500 h-full" style="width: 98%"></div></div>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-2">
+                            <div class="text-xs font-bold text-slate-300">🚰 Water & Municipal Drainage</div>
+                            <div class="text-xl font-bold text-amber-400 font-mono">88% Operational</div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full"><div class="bg-amber-500 h-full" style="width: 88%"></div></div>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-2">
+                            <div class="text-xs font-bold text-slate-300">⚡ Power Grid & Redundancy</div>
+                            <div class="text-xl font-bold text-emerald-400 font-mono">94% Operational</div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full"><div class="bg-emerald-500 h-full" style="width: 94%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAiResponseCenterView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">Explainable AI Response Center</h2>
+                    <div class="glass-panel p-5 rounded-xl space-y-4 border border-purple-500/30">
+                        <div class="text-xs font-mono text-purple-400">RECOMMENDATION #REC-8802</div>
+                        <h3 class="text-sm font-bold text-slate-100">Deploy Flood Barrier Safeguard at Zone 4 Substation</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-navy-950 p-3 rounded-lg">
+                            <div><span class="text-slate-500">WHY:</span> <p class="text-slate-300">Rainfall forecast delta +25% in 2 hours.</p></div>
+                            <div><span class="text-slate-500">EVIDENCE:</span> <p class="text-slate-300">Weather feed + 8 citizen reports.</p></div>
+                            <div><span class="text-slate-500">CONFIDENCE:</span> <p class="text-cyan-400 font-mono font-bold">88%</p></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="approveAction('REC-8802')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded text-xs">
+                                Approve Action
+                            </button>
+                            <button class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2 rounded text-xs">
+                                Reject / Modify
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEmergencyAlertsView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">Emergency Alert Center</h2>
+                    <div class="glass-panel p-4 rounded-xl space-y-3">
+                        <div class="p-3 bg-red-950/40 border border-red-800/60 rounded-lg flex justify-between items-center text-xs">
+                            <div>
+                                <span class="font-bold text-red-400">HIGH PRIORITY BROADCAST</span>
+                                <p class="text-slate-300 mt-0.5">Zone 4 Roadway Standing Water Advisory</p>
+                            </div>
+                            <button onclick="alert('Broadcast sent to mobile networks in Zone 4!')" class="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1.5 rounded">
+                                Dispatch Broadcast
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAnalyticsView() {
+            return `
+                <div class="space-y-6">
+                    <h2 class="text-xl font-bold text-slate-100">City Resilience Analytics</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel p-4 rounded-xl space-y-2">
+                            <h3 class="text-xs font-bold text-slate-200">Incident Volume over Time (24h Window)</h3>
+                            <canvas id="chart1" class="w-full h-64"></canvas>
+                        </div>
+                        <div class="glass-panel p-4 rounded-xl space-y-2">
+                            <h3 class="text-xs font-bold text-slate-200">Response Resolution Time Distribution</h3>
+                            <canvas id="chart2" class="w-full h-64"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initAnalyticsCharts() {
+            const ctx1 = document.getElementById('chart1');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                        datasets: [{
+                            label: 'Incidents Logged',
+                            data: [12, 19, 8, 25, 14, 24],
+                            borderColor: '#06B6D4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { ticks: { color: '#94A3B8' } }, y: { ticks: { color: '#94A3B8' } } }
+                    }
+                });
+            }
+
+            const ctx2 = document.getElementById('chart2');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Flood', 'Roads', 'Water', 'Power', 'Health'],
+                        datasets: [{
+                            label: 'Avg Response Min',
+                            data: [14, 22, 18, 12, 8],
+                            backgroundColor: '#3B82F6'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { ticks: { color: '#94A3B8' } }, y: { ticks: { color: '#94A3B8' } } }
+                    }
+                });
+            }
+        }
+
+        function renderAuditTrailView() {
+            return `
+                <div class="space-y-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-100">Audit & Evidence Trail</h2>
+                        <p class="text-xs text-slate-400">Immutable ledger of human-in-the-loop decisions and explainable AI recommendations.</p>
+                    </div>
+
+                    <div class="glass-panel p-4 rounded-xl space-y-2">
+                        <div class="space-y-2">
+                            ${state.auditLogs.map(log => `
+                                <div class="p-3 bg-navy-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
+                                    <div class="space-y-0.5">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="font-mono text-cyan-400 font-bold">${log.id}</span>
+                                            <span class="text-slate-200 font-bold">${log.event}</span>
+                                            <span class="text-slate-500 font-mono text-[10px]">${log.time}</span>
+                                        </div>
+                                        <p class="text-slate-400 text-[11px]">Actor: ${log.actor} • Impact: ${log.impact}</p>
+                                    </div>
+                                    <span class="px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-mono rounded font-bold">${log.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSettingsView() {
+            return `
+                <div class="space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100">System Settings & Role Governance</h2>
+                    <div class="glass-panel p-5 rounded-xl text-xs space-y-4">
+                        <div>
+                            <label class="font-bold text-slate-200 block mb-1">Active Command Role</label>
+                            <select class="bg-navy-950 border border-slate-700 text-slate-300 p-2 rounded w-64">
+                                <option>Operations Administrator (Level 4)</option>
+                                <option>Emergency Service Coordinator</option>
+                                <option>Infrastructure Analyst</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLandingPage() {
+            return `
+                <div class="min-h-screen bg-navy-950 text-slate-100 flex flex-col justify-between p-6 relative overflow-hidden">
+                    <!-- Background ambient glow -->
+                    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <header class="flex items-center justify-between max-w-6xl mx-auto w-full z-10">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500 flex items-center justify-center text-cyan-400">
+                                <i class="fa-solid fa-shield-halved text-xl"></i>
+                            </div>
+                            <span class="font-bold tracking-wider text-base">CITYSHIELD RESILIENCE</span>
+                        </div>
+                        <button onclick="setActiveTab('overview')" class="bg-cyan-500 hover:bg-cyan-400 text-navy-950 font-bold px-4 py-2 rounded-lg text-xs transition">
+                            Enter Command Center
+                        </button>
+                    </header>
+
+                    <main class="max-w-4xl mx-auto text-center space-y-6 z-10 my-auto py-12">
+                        <span class="bg-cyan-950 text-cyan-400 border border-cyan-800 text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-bold">
+                            AI-POWERED URBAN COMMAND CENTER
+                        </span>
+                        <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-100">
+                            Predict. Protect. Respond. Recover.
+                        </h1>
+                        <p class="text-slate-400 text-sm md:text-base max-w-2xl mx-auto">
+                            International command platform for emergency management, municipalities, utilities, and resilience agencies powered by explainable AI and human-in-the-loop decision governance.
+                        </p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                            <button onclick="setActiveTab('overview')" class="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-400 text-navy-950 font-bold px-6 py-3 rounded-xl text-sm transition shadow-lg shadow-cyan-500/25">
+                                Enter Command Center
+                            </button>
+                            <button onclick="setActiveTab('simulator')" class="w-full sm:w-auto bg-navy-900 border border-slate-700 hover:border-cyan-500 text-slate-200 font-bold px-6 py-3 rounded-xl text-sm transition">
+                                Launch Resilience Simulation
+                            </button>
+                        </div>
+                    </main>
+
+                    <footer class="max-w-6xl mx-auto w-full text-center text-xs text-slate-600 border-t border-slate-900 pt-4 z-10">
+                        CITYSHIELD RESILIENCE Operational Platform • Demo Synthetic Intelligence Environment
+                    </footer>
+                </div>
+            `;
+        }
+
+        function renderNotificationsDrawer() {
+            if (!state.notificationsOpen) return '';
+            return `
+                <div class="fixed inset-y-0 right-0 w-80 bg-navy-900 border-l border-slate-800 z-50 p-4 shadow-2xl flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-sm font-bold text-slate-100">Live Notifications</h3>
+                            <button onclick="state.notificationsOpen = false; renderApp();" class="text-slate-500 hover:text-slate-200">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-2">
+                            ${state.activeNotifications.map(n => `
+                                <div class="p-2.5 bg-navy-950 rounded-lg border border-slate-800 space-y-1">
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span class="font-bold text-slate-200">${n.title}</span>
+                                        <span class="text-[10px] text-slate-500">${n.time}</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400">${n.detail}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSearchModal() {
+            if (!state.searchModalOpen) return '';
+            return `
+                <div class="fixed inset-0 bg-navy-950/80 backdrop-blur-sm z-50 flex items-start justify-center pt-20 p-4">
+                    <div class="bg-navy-900 border border-slate-700 rounded-xl w-full max-w-xl p-4 shadow-2xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <input type="text" placeholder="Search incidents, infrastructure, facilities..." class="bg-transparent border-none text-slate-100 w-full focus:outline-none text-sm" autofocus />
+                            <button onclick="state.searchModalOpen = false; renderApp();" class="text-slate-500">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-slate-500 font-mono">Quick Suggestions: Central Hospital, Bridge B-204, Zone 4 Flood</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function approveAction(id) {
+            state.auditLogs.unshift({
+                id: 'AUD-' + Math.floor(1000 + Math.random() * 9000),
+                time: new Date().toISOString().substring(11, 19) + ' UTC',
+                event: 'Action Approved for Item ' + id,
+                actor: 'Operations Administrator',
+                status: 'EXECUTED',
+                impact: 'Resource dispatched successfully'
+            });
+            alert("Action for " + id + " approved and logged into Audit Trail!");
+            renderApp();
+        }
+
+        // Initialize application on load
+        window.onload = function() {
+            renderApp();
+        };
+    </script>
+</body>
+</html>
